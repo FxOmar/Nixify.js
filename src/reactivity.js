@@ -9,13 +9,17 @@ function createReactiveObject(target) {
     return existingProxy;
   }
 
+  console.log("Creating reactive object for:", target);
+
   const proxy = new Proxy(target, {
     set(target, key, value, receiver) {
       const result = Reflect.set(target, key, value, receiver);
 
+      conssole.log(target);
+
       // Notify observers
       context.forEach((observer) => {
-        observer();
+        observer(target);
       });
 
       return result;
@@ -36,13 +40,15 @@ function isPrimtive(value) {
 
 export function $state(value) {
   const subscriptions = new Set();
+  console.log("Initializing state with value:", value);
 
   isPrimtive(value) || (value = createReactiveObject(value));
 
   return {
     get value() {
-      console.log("Getting value:", value);
       const observer = context[context.length - 1];
+
+      console.log("Accessing state value:", value, "with observer:", observer);
 
       if (observer) {
         subscriptions.add(observer);
@@ -58,9 +64,7 @@ export function $state(value) {
       value = v;
 
       subscriptions.forEach((observer) => {
-        console.log("Notifying observer:", observer);
-
-        observer();
+        observer(value);
       });
     },
   };
@@ -71,8 +75,6 @@ export function watchEffect(effect, immediate = false) {
     context.push(effect);
 
     if (immediate) effect();
-
-    // context.pop();
   }
 
   runEffect();

@@ -2,22 +2,14 @@ import "./style.css";
 import { $state, watchEffect } from "./reactivity";
 
 const todos = $state([1, 2, 3]);
-// const list = $state([1, 2, 3]);
-
-// console.log("Todos changed:", todos.value);
-
-watchEffect(() => {
-  console.log("Todos changed:", todos.value);
-  // console.log("List changed:", list.value);
-  // processXAttributes(todos.value);
-}, true);
+// const user = $state({ name: "Omar", age: 30 });
 
 // Check if element is inside an x-for template
 function isInsideXForTemplate(element) {
   let parent = element.parentElement;
 
   while (parent) {
-    if (parent.hasAttribute("x-for-container")) {
+    if (parent.hasAttribute("x-for")) {
       return true;
     }
     parent = parent.parentElement;
@@ -51,8 +43,6 @@ function processXAttributes(data = {}) {
   findElementsWithAttributeQuery("[x-text]").forEach((el) => {
     if (isInsideXForTemplate(el)) return;
 
-    console.log("Processing x-text for element:", el);
-
     const expr = el.getAttribute("x-text");
     el.textContent = evaluateExpression(expr, data);
   });
@@ -60,6 +50,10 @@ function processXAttributes(data = {}) {
 
 function processXFor(data = {}) {
   findElementsWithAttributeQuery("[x-for]").forEach((template) => {
+    while (template.children.length > 1) {
+      template.removeChild(template.lastChild);
+    }
+
     const forExpression = template.getAttribute("x-for");
 
     // Parse expression like "item in items" or "(item, index) in items"
@@ -76,17 +70,16 @@ function processXFor(data = {}) {
     const indexName = match[2]; // optional index variable
     const arrayName = match[4]; // array name
 
-    if (!template || !template.hasAttribute("x-for-container")) {
-      template.setAttribute("x-for-container", arrayName);
-    }
+    // if (!template || !template.hasAttribute("x-for-container")) {
+    //   template.setAttribute("x-for-container", arrayName);
+    // }
 
     const items = data[arrayName] || data || [];
 
-    template.removeAttribute("x-for");
+    // template.removeAttribute("x-for");
 
     items.forEach((item, index) => {
       // console.log("Cloning template for item:", item);
-
       const clone = template.children[0].cloneNode(true);
 
       // Create context with item and optional index
@@ -104,6 +97,8 @@ function processXFor(data = {}) {
 
       template.appendChild(clone);
     });
+
+    template.removeChild(template.querySelector("[x-text]"));
   });
 }
 
@@ -112,13 +107,9 @@ function processElement(element, context) {
   if (element.hasAttribute("x-text")) {
     const expr = element.getAttribute("x-text");
     element.textContent = evaluateExpression(expr, context);
-    element.removeAttribute("x-text"); // Remove after processing
+    // element.removeAttribute("x-text"); // Remove after processing
   }
 }
-
-window.addEventListener("DOMContentLoaded", () => {
-  processXAttributes(todos.value);
-});
 
 document.querySelector("button").addEventListener("click", () => {
   todos.value.push(Math.random());
