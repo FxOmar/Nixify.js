@@ -5,9 +5,9 @@ export function exposeScope(defs) {
   for (const k in defs) {
     const v = defs[k];
     const getter =
-      typeof v === 'function'
+      typeof v === "function"
         ? v
-        : () => (v && typeof v === 'object' && 'value' in v ? v.value : v);
+        : () => (v && typeof v === "object" && "value" in v ? v.value : v);
     local.set(k, getter);
   }
   return {
@@ -21,4 +21,4 @@ export function exposeScope(defs) {
 }
 
 export { vars };
-import { template } from './template.js';
+import { template } from "./template.js";

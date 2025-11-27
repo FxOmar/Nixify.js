@@ -1,11 +1,11 @@
-import './style.css';
-import { createApp } from '../../src/index.js';
+import "./style.css";
+import { createApp } from "../../src/index.js";
 
 const app = createApp();
 
 const count = app.state(0);
 
-const Counter = app.expose({ count }).template/*html*/ `
+const Counter = app.expose({ count }).template /*html*/ `
   <div style="font-family: system-ui, sans-serif; padding: 12px; max-width: 380px;">
     <h2>Counter (example)</h2>
     <p :nix-text="count"></p>
@@ -17,9 +17,11 @@ const Counter = app.expose({ count }).template/*html*/ `
   </div>
 `;
 
-const App = app.components({ Counter }).expose({ count }).template/*html*/ `
+const App = app.components({ Counter }).expose({ count }).template /*html*/ `
   <h1>Counter App</h1>
   <Counter />
+
+  <h2 nix-show="count > 0">Counter Will be hidden in 5 seconds</h2>
 `;
 
-app.mount(App, document.getElementById('app'));
+app.mount(App, document.getElementById("app"));
