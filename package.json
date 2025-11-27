@@ -1,13 +1,29 @@
 {
   "name": "vanilla-js",
-  "private": true,
+  "private": false,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "examples": "vite --open /examples/counter/index.html",
+    "examples:counter": "vite --open /examples/counter/index.html",
+    "examples:todos": "vite --open /examples/todos/index.html",
+    "examples:bench:lib": "vite --open /examples/bench/lib.html",
+    "examples:bench:vue": "vite --open /examples/bench/vue.html",
     "build": "vite build",
     "preview": "vite preview"
   },
+  "main": "dist/index.cjs",
+  "module": "dist/index.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "vite": "^7.2.2"
   }

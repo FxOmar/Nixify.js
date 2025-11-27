@@ -1,81 +1,92 @@
-const context = [];
-const proxyMap = new WeakMap();
+const depsMap = new WeakMap();
+let currentEffect = null;
 
-function createReactiveObject(target) {
-  // target already has corresponding Proxy
-  const existingProxy = proxyMap.get(target);
+const q = new Set();
+let flushing = false;
 
-  if (existingProxy) {
-    return existingProxy;
+function schedule(effect) {
+  q.add(effect);
+  if (!flushing) {
+    flushing = true;
+    Promise.resolve().then(() => {
+      try {
+        q.forEach((e) => e());
+      } finally {
+        q.clear();
+        flushing = false;
+      }
+    });
   }
+}
 
-  console.log("Creating reactive object for:", target);
+function track(target, key) {
+  if (!currentEffect) return;
+  let map = depsMap.get(target);
+  if (!map) {
+    map = new Map();
+    depsMap.set(target, map);
+  }
+  let dep = map.get(key);
+  if (!dep) {
+    dep = new Set();
+    map.set(key, dep);
+  }
+  if (!dep.has(currentEffect)) {
+    dep.add(currentEffect);
+    currentEffect.deps.push(dep);
+  }
+}
 
-  const proxy = new Proxy(target, {
-    set(target, key, value, receiver) {
-      const result = Reflect.set(target, key, value, receiver);
+function trigger(target, key) {
+  const map = depsMap.get(target);
+  if (!map) return;
+  const dep = map.get(key);
+  if (!dep) return;
+  dep.forEach((effect) => schedule(effect));
+}
 
-      conssole.log(target);
+export function cleanupEffect(effect) {
+  if (!effect.deps) return;
+  for (const dep of effect.deps) {
+    dep.delete(effect);
+  }
+  effect.deps.length = 0;
+}
 
-      // Notify observers
-      context.forEach((observer) => {
-        observer(target);
-      });
+export function effect(fn) {
+  const runner = () => {
+    cleanupEffect(runner);
+    currentEffect = runner;
+    try {
+      fn();
+    } finally {
+      currentEffect = null;
+    }
+  };
+  runner.deps = [];
+  runner();
+  return runner;
+}
 
-      return result;
+export function state(init) {
+  const box = { value: init };
+  return new Proxy(box, {
+    get(t, k) {
+      if (k === 'value') track(t, 'value');
+      return Reflect.get(t, k);
     },
-    get(target, key, receiver) {
-      return Reflect.get(target, key, receiver);
+    set(t, k, v) {
+      const ok = Reflect.set(t, k, v);
+      if (ok) trigger(t, 'value');
+      return ok;
     },
   });
-
-  proxyMap.set(target, proxy);
-
-  return proxy;
 }
 
-function isPrimtive(value) {
-  return value === null || typeof value !== "object";
-}
-
-export function $state(value) {
-  const subscriptions = new Set();
-  console.log("Initializing state with value:", value);
-
-  isPrimtive(value) || (value = createReactiveObject(value));
-
-  return {
-    get value() {
-      const observer = context[context.length - 1];
-
-      console.log("Accessing state value:", value, "with observer:", observer);
-
-      if (observer) {
-        subscriptions.add(observer);
-
-        observer.cleanup = () => {
-          subscriptions.delete(observer);
-        };
-      }
-
-      return value;
-    },
-    set value(v) {
-      value = v;
-
-      subscriptions.forEach((observer) => {
-        observer(value);
-      });
-    },
-  };
-}
-
-export function watchEffect(effect, immediate = false) {
-  function runEffect() {
-    context.push(effect);
-
-    if (immediate) effect();
-  }
-
-  runEffect();
+export function computed(fn) {
+  const c = state(undefined);
+  effect(() => {
+    c.value = fn();
+  });
+  return c;
 }
