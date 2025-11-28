@@ -1,5 +1,6 @@
-import { components } from "./components.js";
-import { applyDirectives } from "./directives.js";
+import { components } from './components.js';
+import { applyDirectives } from './directives.js';
+import { setNodeLocalVars } from './context.js';
 
 function instantiateFragment(tplResult) {
   const instanceFrag = tplResult.frag.cloneNode(true);
@@ -29,7 +30,7 @@ function instantiateFragment(tplResult) {
     });
 
     if (lowerToComp.size) {
-      const selector = Array.from(lowerToComp.keys()).join(",");
+      const selector = Array.from(lowerToComp.keys()).join(',');
 
       const matches = instanceFrag.querySelectorAll(selector);
 
@@ -38,9 +39,12 @@ function instantiateFragment(tplResult) {
 
         if (!comp) return;
 
-        const childTpl = typeof comp === "function" ? comp() : comp;
+        const childTpl = typeof comp === 'function' ? comp() : comp;
 
         const child = instantiateFragment(childTpl);
+
+        const nodes = child.frag.querySelectorAll('*');
+        nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
 
         el.replaceWith(child.frag);
         cleanups.push(...child.cleanups);
@@ -52,7 +56,7 @@ function instantiateFragment(tplResult) {
    * Add event listeners.
    */
   tplResult.partsMeta.forEach((meta, i) => {
-    if (meta.kind === "event") {
+    if (meta.kind === 'event') {
       const token = meta.token;
       const selector = `[${meta.name}="${token}"], [${meta.name}='${token}']`;
       const matches = instanceFrag.querySelectorAll(selector);
@@ -62,7 +66,7 @@ function instantiateFragment(tplResult) {
 
         const handler = tplResult.parts[i];
 
-        if (typeof handler !== "function") return;
+        if (typeof handler !== 'function') return;
         const listener = function (ev) {
           try {
             handler(ev);
@@ -72,7 +76,7 @@ function instantiateFragment(tplResult) {
         el.addEventListener(meta.name.slice(2), listener);
 
         cleanups.push(() =>
-          el.removeEventListener(meta.name.slice(2), listener),
+          el.removeEventListener(meta.name.slice(2), listener)
         );
       });
     }
@@ -84,12 +88,12 @@ function instantiateFragment(tplResult) {
 export function mount(tplResult, target) {
   const { frag, cleanups } = instantiateFragment(tplResult);
 
+  target.appendChild(frag);
+
   /**
    * Apply directives.
    */
-  applyDirectives(frag, { localVars: tplResult.localVars }, cleanups);
-
-  target.appendChild(frag);
+  applyDirectives(target, { localVars: tplResult.localVars }, cleanups);
 
   return {
     unmount() {

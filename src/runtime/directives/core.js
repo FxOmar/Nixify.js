@@ -1,5 +1,6 @@
 import { effect, cleanupEffect } from '../../reactivity.js';
 import { vars } from '../expose.js';
+import { getNodeLocalVars } from '../context.js';
 
 const prefix = 'nix-';
 
@@ -13,8 +14,15 @@ export function directive(name, callback) {
 }
 
 export function dispatchDirective(el, name, payload, ctx, cleanups, evaluate) {
-  const handler = directiveHandlers[name];
-  if (!handler) return false;
+  let handler = directiveHandlers[name];
+  if (!handler) {
+    const base = name.startsWith(prefix)
+      ? name.slice(prefix.length).split('-')[0]
+      : name.split('-')[0];
+    const fallback = prefix + base;
+    handler = directiveHandlers[fallback];
+    if (!handler) return false;
+  }
   handler(el, payload, {
     ctx,
     effect,
@@ -33,7 +41,6 @@ function normalizeName(attrName) {
 }
 
 function makeEval(ctx) {
-  console.log('makeEval', ctx);
   return function (expr, locals = {}) {
     const scope = {};
     if (ctx && ctx.localVars) {
@@ -60,28 +67,43 @@ function makeEval(ctx) {
 }
 
 export function applyDirectives(root, ctx, cleanups) {
-  const evaluate = makeEval(ctx);
+  const run = () => {
+    const baseEvaluate = makeEval(ctx);
+    const els = root.querySelectorAll('*');
+    els.forEach((el) => {
+      const attrs = Array.from(el.attributes);
+      for (let i = 0; i < attrs.length; i++) {
+        const attr = attrs[i];
+        const name = normalizeName(attr.name);
+        const value = attr.value;
+        const localVars = getNodeLocalVars(el);
+        const evalFn = localVars ? makeEval({ localVars }) : baseEvaluate;
+        dispatchDirective(
+          el,
+          name,
+          { value, modifiers: [], expression: value },
+          ctx,
+          cleanups,
+          (expr, locals) => evalFn(expr, locals)
+        );
+      }
+    });
+  };
 
-  const els = root.querySelectorAll('*');
+  const isMounted = () =>
+    root.nodeType === 11
+      ? !!root.firstElementChild && root.firstElementChild.isConnected
+      : root.isConnected;
 
-  els.forEach((el) => {
-    console.log('applyDirectives', el);
-    const attrs = Array.from(el.attributes);
-
-    for (let i = 0; i < attrs.length; i++) {
-      const attr = attrs[i];
-      const name = normalizeName(attr.name);
-      const value = attr.value;
-      dispatchDirective(
-        el,
-        name,
-        { value, modifiers: [], expression: value },
-        ctx,
-        cleanups,
-        (expr, locals) => evaluate(expr, locals)
-      );
-    }
-  });
+  if (!isMounted()) {
+    const tryRun = () => {
+      if (isMounted()) run();
+      else requestAnimationFrame(tryRun);
+    };
+    requestAnimationFrame(tryRun);
+  } else {
+    run();
+  }
 }
 
 export { prefix };

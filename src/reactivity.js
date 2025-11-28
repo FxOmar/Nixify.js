@@ -74,12 +74,12 @@ export function state(init) {
   const box = { value: init };
   return new Proxy(box, {
     get(t, k) {
-      if (k === "value") track(t, "value");
+      if (k === 'value') track(t, 'value');
       return Reflect.get(t, k);
     },
     set(t, k, v) {
       const ok = Reflect.set(t, k, v);
-      if (ok) trigger(t, "value");
+      if (ok) trigger(t, 'value');
       return ok;
     },
   });
