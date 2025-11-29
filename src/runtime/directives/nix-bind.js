@@ -14,8 +14,11 @@ directive('bind', (el, { expression }, helpers) => {
   const prop = raw.name.replace(/^nix-bind:/, '').replace(/^:/, '');
 
   const name = (expression || '').trim();
+
   const getter = vars.get(name);
   const box = getter ? getter() : null;
+
+  console.log('bind', prop, name, box, getter, vars);
 
   if (!box || typeof box !== 'object' || !('value' in box)) return;
 
