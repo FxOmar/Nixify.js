@@ -5,20 +5,20 @@ export function exposeScope(defs) {
   for (const k in defs) {
     const v = defs[k];
     const getter =
-      typeof v === "function"
+      typeof v === 'function'
         ? v
-        : () => (v && typeof v === "object" && "value" in v ? v.value : v);
+        : () => (v && typeof v === 'object' && 'value' in v ? v.value : v);
     local.set(k, getter);
+    vars.set(k, () => v);
   }
   return {
     template(strings, ...parts) {
       const res = template(strings, ...parts);
       res.localVars = local;
-      console.log(res);
       return res;
     },
   };
 }
 
 export { vars };
-import { template } from "./template.js";
+import { template } from './template.js';

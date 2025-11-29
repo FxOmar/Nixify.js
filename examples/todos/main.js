@@ -3,7 +3,7 @@ import { createApp } from '../../src/index.js';
 const app = createApp();
 
 const todos = app.state([]);
-const text = app.state('');
+const text = app.state('Hello, World!');
 
 const total = app.computed(() => `${todos.value.length} todos`);
 
@@ -22,8 +22,8 @@ function removeLast() {
 
 const TodoInput = app.expose({ text }).template/*html*/ `
   <div>
-    <input value="" placeholder="Add a todo" oninput=${(e) =>
-      (text.value = e.target.value)} />
+    <h1 nix-text="text"></h1>
+    <input nix-bind:value="text" placeholder="Add a todo" />
     <button onclick=${addTodo}>Add</button>
     <button onclick=${removeLast}>Remove Last</button>
   </div>
