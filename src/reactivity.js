@@ -1,4 +1,4 @@
-import { ref, computed, effect, stop } from '@vue/reactivity';
+import { ref, computed, effect, stop } from "@vue/reactivity";
 
 export { effect };
 export { computed };

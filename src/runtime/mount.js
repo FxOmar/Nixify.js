@@ -1,8 +1,12 @@
-import { components } from './components.js';
-import { applyDirectives } from './directives.js';
-import { setNodeLocalVars } from './context.js';
+import { components } from "./components.js";
+import { applyDirectives } from "./directives.js";
+import { setNodeLocalVars } from "./context.js";
 
 function instantiateFragment(tplResult) {
+  if (!tplResult || !tplResult.frag) {
+    return { frag: document.createDocumentFragment(), cleanups: [] };
+  }
+
   const instanceFrag = tplResult.frag.cloneNode(true);
 
   const cleanups = [];
@@ -30,7 +34,7 @@ function instantiateFragment(tplResult) {
     });
 
     if (lowerToComp.size) {
-      const selector = Array.from(lowerToComp.keys()).join(',');
+      const selector = Array.from(lowerToComp.keys()).join(",");
 
       const matches = instanceFrag.querySelectorAll(selector);
 
@@ -39,11 +43,11 @@ function instantiateFragment(tplResult) {
 
         if (!comp) return;
 
-        const childTpl = typeof comp === 'function' ? comp() : comp;
+        const childTpl = typeof comp === "function" ? comp() : comp;
 
         const child = instantiateFragment(childTpl);
 
-        const nodes = child.frag.querySelectorAll('*');
+        const nodes = child.frag.querySelectorAll("*");
         nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
 
         el.replaceWith(child.frag);
@@ -56,7 +60,7 @@ function instantiateFragment(tplResult) {
    * Add event listeners.
    */
   tplResult.partsMeta.forEach((meta, i) => {
-    if (meta.kind === 'event') {
+    if (meta.kind === "event") {
       const token = meta.token;
       const selector = `[${meta.name}="${token}"], [${meta.name}='${token}']`;
       const matches = instanceFrag.querySelectorAll(selector);
@@ -66,7 +70,7 @@ function instantiateFragment(tplResult) {
 
         const handler = tplResult.parts[i];
 
-        if (typeof handler !== 'function') return;
+        if (typeof handler !== "function") return;
         const listener = function (ev) {
           try {
             handler(ev);
@@ -76,7 +80,7 @@ function instantiateFragment(tplResult) {
         el.addEventListener(meta.name.slice(2), listener);
 
         cleanups.push(() =>
-          el.removeEventListener(meta.name.slice(2), listener)
+          el.removeEventListener(meta.name.slice(2), listener),
         );
       });
     }
@@ -85,6 +89,13 @@ function instantiateFragment(tplResult) {
   return { frag: instanceFrag, cleanups };
 }
 
+/**
+ * Mount a template result into a target DOM node.
+ *
+ * @param {import('./template.js').TemplateResult} tplResult The template result to mount.
+ * @param {Node} target The target DOM node to mount into.
+ * @returns {Object} An object with an unmount method to remove the mounted content.
+ */
 export function mount(tplResult, target) {
   const { frag, cleanups } = instantiateFragment(tplResult);
 
