@@ -1,7 +1,7 @@
 {
-  "name": "vanilla-js",
+  "name": "nixify.js",
   "private": false,
-  "version": "0.0.0",
+  "version": "0.0.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
