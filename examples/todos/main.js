@@ -23,7 +23,7 @@ function removeLast() {
 const TodoInput = app.expose({ text }).template/*html*/ `
   <div>
     <h1 nix-text="text"></h1>
-    <input nix-bind:value="text" placeholder="Add a todo" />
+    <input :value="text" placeholder="Add a todo" />
     <button onclick=${addTodo}>Add</button>
     <button onclick=${removeLast}>Remove Last</button>
   </div>

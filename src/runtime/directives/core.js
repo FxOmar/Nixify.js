@@ -38,8 +38,16 @@ export function dispatchDirective(el, name, payload, ctx, cleanups, evaluate) {
 
 function normalizeName(attrName) {
   let n = attrName;
-  if (n.startsWith(':')) n = n.slice(1);
+  if (n.startsWith(':')) {
+    const candidate = n.slice(1);
+    const base = candidate.split(/[-:]/)[0];
+    const known = ['text', 'html', 'show', 'for', 'on', 'bind'];
+
+    n = known.includes(base) ? candidate : `bind:${candidate}`;
+  }
+
   if (!n.startsWith(prefix)) n = prefix + n;
+
   return n;
 }
 
