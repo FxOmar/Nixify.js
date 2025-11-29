@@ -29,20 +29,11 @@ const TodoInput = app.expose({ text }).template/*html*/ `
   </div>
 `;
 
-const randomNumber = app.state(Math.random());
-
-const html = `<div>
-<h1>Hello World</h1>
-</div>`;
-
-const TodoUI = app
-  .components({ TodoInput })
-  .expose({ todos, total, randomNumber, html }).template/*html*/ `
+const TodoUI = app.components({ TodoInput }).expose({ todos, total })
+  .template/*html*/ `
   <div style="max-width: 480px;">
-    <h2>Todos (random number: <span :nix-text="randomNumber"></span>)</h2>
+    <h2>Todos (total: <span nix-text="total"></span>)</h2>
     <TodoInput />
-    <p :nix-text="total"></p>
-    <div nix-html="html"></div>
     <div nix-for="item in todos">
       <p :nix-text="item"></p>
     </div>
