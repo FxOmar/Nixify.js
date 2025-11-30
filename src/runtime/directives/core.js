@@ -1,8 +1,8 @@
-import { effect, cleanupEffect } from '../../reactivity.js';
-import { vars } from '../expose.js';
-import { getNodeLocalVars } from '../context.js';
+import { effect, cleanupEffect } from "../../reactivity.js";
+import { vars } from "../expose.js";
+import { getNodeLocalVars } from "../context.js";
 
-const prefix = 'nix-';
+const prefix = "nix-";
 
 let directiveHandlers = {};
 
@@ -16,13 +16,16 @@ export function directive(name, callback) {
 
 export function dispatchDirective(el, name, payload, ctx, cleanups, evaluate) {
   let handler = directiveHandlers[name];
+
   if (!handler) {
     const base = name.startsWith(prefix)
       ? name.slice(prefix.length).split(/[-:]/)[0]
       : name.split(/[-:]/)[0];
     const fallback = prefix + base;
+
     handler = directiveHandlers[fallback];
-    if (!handler) return false;
+
+    if (!handler) return;
   }
 
   handler(el, payload, {
@@ -32,16 +35,15 @@ export function dispatchDirective(el, name, payload, ctx, cleanups, evaluate) {
     cleanup: (fn) => cleanups.push(fn),
     evaluate: (expr, locals) => evaluate(expr, locals),
   });
-
-  return true;
 }
 
 function normalizeName(attrName) {
   let n = attrName;
-  if (n.startsWith(':')) {
+
+  if (n.startsWith(":")) {
     const candidate = n.slice(1);
     const base = candidate.split(/[-:]/)[0];
-    const known = ['text', 'html', 'show', 'for', 'on', 'bind'];
+    const known = ["text", "html", "show", "for", "bind"];
 
     n = known.includes(base) ? candidate : `bind:${candidate}`;
   }
@@ -54,17 +56,21 @@ function normalizeName(attrName) {
 function makeEval(ctx) {
   return function (expr, locals = {}) {
     const scope = {};
+
     if (ctx && ctx.localVars) {
       ctx.localVars.forEach((getter, k) => {
         scope[k] = getter();
       });
     }
+
     if (vars && vars.size) {
       vars.forEach((getter, k) => {
         if (!(k in scope)) scope[k] = getter();
       });
     }
+
     Object.assign(scope, locals);
+
     const names = Object.keys(scope);
     const values = names.map((k) => scope[k]);
 
@@ -80,17 +86,42 @@ function makeEval(ctx) {
 export function applyDirectives(root, ctx, cleanups) {
   const run = () => {
     const baseEvaluate = makeEval(ctx);
-    const els = root.querySelectorAll('*');
 
-    els.forEach((el) => {
-      const attrs = Array.from(el.attributes);
+    // Use TreeWalker for better performance on large DOMs
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_ELEMENT,
+      null,
+      false,
+    );
 
-      for (let i = 0; i < attrs.length; i++) {
+    let el;
+
+    while ((el = walker.nextNode())) {
+      const attrs = el.attributes;
+      const attrCount = attrs.length;
+
+      // Cache local vars lookup
+      let localVars = null;
+      let evalFn = null;
+      let hasCheckedLocalVars = false;
+
+      for (let i = 0; i < attrCount; i++) {
         const attr = attrs[i];
+
+        if (!attr.name.startsWith(prefix) && !attr.name.startsWith(":")) {
+          continue;
+        }
+
         const name = normalizeName(attr.name);
         const value = attr.value;
-        const localVars = getNodeLocalVars(el);
-        const evalFn = localVars ? makeEval({ localVars }) : baseEvaluate;
+
+        // Lazy initialize localVars and evalFn only if needed
+        if (!hasCheckedLocalVars) {
+          localVars = getNodeLocalVars(el);
+          evalFn = localVars ? makeEval({ localVars }) : baseEvaluate;
+          hasCheckedLocalVars = true;
+        }
 
         dispatchDirective(
           el,
@@ -98,26 +129,13 @@ export function applyDirectives(root, ctx, cleanups) {
           { value, modifiers: [], expression: value },
           ctx,
           cleanups,
-          (expr, locals) => evalFn(expr, locals)
+          (expr, locals) => evalFn(expr, locals),
         );
       }
-    });
+    }
   };
 
-  const isMounted = () =>
-    root.nodeType === 11
-      ? !!root.firstElementChild && root.firstElementChild.isConnected
-      : root.isConnected;
-
-  if (!isMounted()) {
-    const tryRun = () => {
-      if (isMounted()) run();
-      else requestAnimationFrame(tryRun);
-    };
-    requestAnimationFrame(tryRun);
-  } else {
-    run();
-  }
+  run();
 }
 
 export { prefix };

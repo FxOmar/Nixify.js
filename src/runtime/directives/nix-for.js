@@ -1,30 +1,31 @@
-import { directive } from './core.js';
-import { dispatchDirective, prefix } from './core.js';
-import { cleanupEffect } from '../../reactivity.js';
-import { components } from '../components.js';
-import { instantiateFragment } from '../mount.js';
-import { setNodeLocalVars } from '../context.js';
+import { directive } from "./core.js";
+import { dispatchDirective, prefix } from "./core.js";
+import { cleanupEffect } from "../../reactivity.js";
+import { components } from "../components.js";
+import { instantiateFragment } from "../mount.js";
+import { setNodeLocalVars } from "../context.js";
 
-directive('for', (el, { expression }, helpers) => {
+directive("for", (el, { expression }, helpers) => {
   const forMatch = expression.match(
-    /^(?:([\w$]+)(?:\s*,\s*([\w$]+))?\s+in\s+)?(.+)$/
+    /^(?:([\w$]+)(?:\s*,\s*([\w$]+))?\s+in\s+)?(.+)$/,
   );
 
   if (!forMatch) {
-    console.error('Invalid for expression:', expression);
+    console.error("Invalid for expression:", expression);
     return;
   }
 
-  const itemName = forMatch[1] || 'item';
-  const indexName = forMatch[2] || 'index';
+  const itemName = forMatch[1] || "item";
+  const indexName = forMatch[2] || "index";
   const collectionExpr = forMatch[3];
 
   const template = el.innerHTML;
   const parent = el.parentNode;
   const marker = document.createComment(`nix-for: ${expression}`);
   const baseAttributes = [];
+
   Array.from(el.attributes).forEach((attr) => {
-    if (!attr.name.startsWith('nix-for') && !attr.name.startsWith(':for')) {
+    if (!attr.name.startsWith("nix-for") && !attr.name.startsWith(":for")) {
       baseAttributes.push([attr.name, attr.value]);
     }
   });
@@ -57,14 +58,17 @@ directive('for', (el, { expression }, helpers) => {
 
     const items = Array.isArray(collection)
       ? collection
-      : typeof collection === 'object'
-      ? Object.entries(collection)
-      : [];
+      : typeof collection === "object"
+        ? Object.entries(collection)
+        : [];
 
     const frag = document.createDocumentFragment();
+
     for (let index = 0; index < items.length; index++) {
       const item = items[index];
+
       const clone = document.createElement(el.tagName);
+
       clone.innerHTML = template;
 
       const lowerToComp = new Map();
@@ -73,14 +77,14 @@ directive('for', (el, { expression }, helpers) => {
       });
 
       if (lowerToComp.size) {
-        const selector = Array.from(lowerToComp.keys()).join(',');
+        const selector = Array.from(lowerToComp.keys()).join(",");
         const matches = clone.querySelectorAll(selector);
         matches.forEach((child) => {
           const comp = lowerToComp.get(child.tagName.toLowerCase());
           if (!comp) return;
-          const childTpl = typeof comp === 'function' ? comp() : comp;
+          const childTpl = typeof comp === "function" ? comp() : comp;
           const childInst = instantiateFragment(childTpl);
-          const nodes = childInst.frag.querySelectorAll('*');
+          const nodes = childInst.frag.querySelectorAll("*");
           nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
           child.replaceWith(childInst.frag);
           cloneCleanups.push(...childInst.cleanups);
@@ -98,6 +102,7 @@ directive('for', (el, { expression }, helpers) => {
       };
 
       const cloneCleanups = [];
+
       const cloneEvaluate = (expr, additionalLocals = {}) => {
         return helpers.evaluate(expr, { ...locals, ...additionalLocals });
       };
@@ -106,9 +111,9 @@ directive('for', (el, { expression }, helpers) => {
         const attrs = childEl.attributes;
         for (let j = 0; j < attrs.length; j++) {
           const attr = attrs[j];
-          let name = attr.name.startsWith(':') ? attr.name.slice(1) : attr.name;
+          let name = attr.name.startsWith(":") ? attr.name.slice(1) : attr.name;
           if (!name.startsWith(prefix)) name = prefix + name;
-          if (name === prefix + 'for') continue;
+          if (name === prefix + "for") continue;
 
           dispatchDirective(
             childEl,
@@ -120,13 +125,14 @@ directive('for', (el, { expression }, helpers) => {
             },
             helpers.ctx,
             cloneCleanups,
-            cloneEvaluate
+            cloneEvaluate,
           );
         }
       };
 
       processEl(clone);
-      const descendants = clone.querySelectorAll('*');
+
+      const descendants = clone.querySelectorAll("*");
       for (let d = 0; d < descendants.length; d++) {
         processEl(descendants[d]);
       }

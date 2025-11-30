@@ -1,5 +1,5 @@
 import { template } from "./template.js";
-import { exposeScope, vars } from "./expose.js";
+import { vars } from "./expose.js";
 
 const components = new Map();
 

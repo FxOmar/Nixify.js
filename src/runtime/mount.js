@@ -57,6 +57,11 @@ function instantiateFragment(tplResult) {
   }
 
   /**
+   * Apply directives.
+   */
+  applyDirectives(instanceFrag, { localVars: tplResult.localVars }, cleanups);
+
+  /**
    * Add event listeners.
    */
   tplResult.partsMeta.forEach((meta, i) => {
@@ -100,11 +105,6 @@ export function mount(tplResult, target) {
   const { frag, cleanups } = instantiateFragment(tplResult);
 
   target.appendChild(frag);
-
-  /**
-   * Apply directives.
-   */
-  applyDirectives(target, { localVars: tplResult.localVars }, cleanups);
 
   return {
     unmount() {
