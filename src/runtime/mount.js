@@ -1,97 +1,33 @@
-import { components } from "./components.js";
-import { applyDirectives } from "./directives.js";
-import { setNodeLocalVars } from "./context.js";
+import { directivesScanner } from "./directives.js";
 
-function instantiateFragment(tplResult) {
-  if (!tplResult || !tplResult.frag) {
-    return { frag: document.createDocumentFragment(), cleanups: [] };
-  }
-
-  const instanceFrag = tplResult.frag.cloneNode(true);
-
-  const cleanups = [];
-
-  const registries = [];
-
+export function domScanner(target) {
   /**
-   * Add the local components registry to the list of registries.
+   * directives scanner.
    */
-  if (tplResult.localComponents) registries.push(tplResult.localComponents);
+  const walker = document.createTreeWalker(target, NodeFilter.SHOW_ELEMENT);
 
-  /**
-   * Add the global components registry to the list of registries.
-   */
-  registries.push(components);
+  const nodesToProcess = [];
 
-  /**
-   * Instantiate child components.
-   */
-  for (const registry of registries) {
-    const lowerToComp = new Map();
+  let node;
 
-    registry.forEach((comp, name) => {
-      lowerToComp.set(name.toLowerCase(), comp);
-    });
+  while ((node = walker.nextNode())) {
+    // Cache attributes to avoid repeated Array.from calls
+    const attrs = node.attributes;
+    let hasNix = false;
 
-    if (lowerToComp.size) {
-      const selector = Array.from(lowerToComp.keys()).join(",");
+    for (let i = 0; i < attrs.length; i++) {
+      if (attrs[i].name.startsWith("nix-")) {
+        hasNix = true;
+        break;
+      }
+    }
 
-      const matches = instanceFrag.querySelectorAll(selector);
-
-      matches.forEach((el) => {
-        const comp = lowerToComp.get(el.tagName.toLowerCase());
-
-        if (!comp) return;
-
-        const childTpl = typeof comp === "function" ? comp() : comp;
-
-        const child = instantiateFragment(childTpl);
-
-        const nodes = child.frag.querySelectorAll("*");
-        nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
-
-        el.replaceWith(child.frag);
-        cleanups.push(...child.cleanups);
-      });
+    if (hasNix) {
+      nodesToProcess.push(node);
     }
   }
 
-  /**
-   * Apply directives.
-   */
-  applyDirectives(instanceFrag, { localVars: tplResult.localVars }, cleanups);
-
-  /**
-   * Add event listeners.
-   */
-  tplResult.partsMeta.forEach((meta, i) => {
-    if (meta.kind === "event") {
-      const token = meta.token;
-      const selector = `[${meta.name}="${token}"], [${meta.name}='${token}']`;
-      const matches = instanceFrag.querySelectorAll(selector);
-
-      matches.forEach((el) => {
-        el.removeAttribute(meta.name);
-
-        const handler = tplResult.parts[i];
-
-        if (typeof handler !== "function") return;
-        const listener = function (ev) {
-          try {
-            handler(ev);
-          } catch {}
-        };
-
-        el.addEventListener(meta.name.slice(2), listener);
-
-        cleanups.push(() =>
-          el.removeEventListener(meta.name.slice(2), listener),
-        );
-      });
-    }
-  });
-
-  return { frag: instanceFrag, cleanups };
+  nodesToProcess.forEach((el) => directivesScanner(el));
 }
 
 /**
@@ -101,21 +37,10 @@ function instantiateFragment(tplResult) {
  * @param {Node} target The target DOM node to mount into.
  * @returns {Object} An object with an unmount method to remove the mounted content.
  */
-export function mount(tplResult, target) {
-  const { frag, cleanups } = instantiateFragment(tplResult);
+export function mount(target = document.body) {
+  const start = performance.now();
+  domScanner(target);
 
-  target.appendChild(frag);
-
-  return {
-    unmount() {
-      cleanups.forEach((fn) => {
-        try {
-          fn();
-        } catch {}
-      });
-      while (target.firstChild) target.removeChild(target.firstChild);
-    },
-  };
+  const end = performance.now();
+  console.log(`Mounting took ${end - start} ms`);
 }
-
-export { instantiateFragment };

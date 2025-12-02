@@ -2,7 +2,7 @@ import { effect, cleanupEffect } from "../../reactivity.js";
 import { vars } from "../expose.js";
 import { getNodeLocalVars } from "../context.js";
 
-const prefix = "nix-";
+export const prefix = "nix-";
 
 let directiveHandlers = {};
 
@@ -83,59 +83,39 @@ function makeEval(ctx) {
   };
 }
 
-export function applyDirectives(root, ctx, cleanups) {
-  const run = () => {
-    const baseEvaluate = makeEval(ctx);
+export function directivesScanner(root, ctx = {}, cleanups = []) {
+  const baseEvaluate = makeEval(ctx);
 
-    // Use TreeWalker for better performance on large DOMs
-    const walker = document.createTreeWalker(
-      root,
-      NodeFilter.SHOW_ELEMENT,
-      null,
-      false,
-    );
+  let el = root;
 
-    let el;
+  const attrs = el.attributes;
+  const attrCount = attrs.length;
 
-    while ((el = walker.nextNode())) {
-      const attrs = el.attributes;
-      const attrCount = attrs.length;
+  // Cache local vars lookup
+  let localVars = null;
+  let evalFn = null;
+  let hasCheckedLocalVars = false;
 
-      // Cache local vars lookup
-      let localVars = null;
-      let evalFn = null;
-      let hasCheckedLocalVars = false;
+  for (let i = 0; i < attrCount; i++) {
+    const attr = attrs[i];
 
-      for (let i = 0; i < attrCount; i++) {
-        const attr = attrs[i];
+    const name = normalizeName(attr.name);
+    const value = attr.value;
 
-        if (!attr.name.startsWith(prefix) && !attr.name.startsWith(":")) {
-          continue;
-        }
-
-        const name = normalizeName(attr.name);
-        const value = attr.value;
-
-        // Lazy initialize localVars and evalFn only if needed
-        if (!hasCheckedLocalVars) {
-          localVars = getNodeLocalVars(el);
-          evalFn = localVars ? makeEval({ localVars }) : baseEvaluate;
-          hasCheckedLocalVars = true;
-        }
-
-        dispatchDirective(
-          el,
-          name,
-          { value, modifiers: [], expression: value },
-          ctx,
-          cleanups,
-          (expr, locals) => evalFn(expr, locals),
-        );
-      }
+    // Lazy initialize localVars and evalFn only if needed
+    if (!hasCheckedLocalVars) {
+      localVars = getNodeLocalVars(el);
+      evalFn = localVars ? makeEval({ localVars }) : baseEvaluate;
+      hasCheckedLocalVars = true;
     }
-  };
 
-  run();
+    dispatchDirective(
+      el,
+      name,
+      { value, modifiers: [], expression: value },
+      ctx,
+      cleanups,
+      (expr, locals) => evalFn(expr, locals),
+    );
+  }
 }
-
-export { prefix };

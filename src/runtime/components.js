@@ -3,8 +3,10 @@ import { vars } from "./expose.js";
 
 const components = new Map();
 
-export function define(name, tplOrFactory) {
-  components.set(name.toLowerCase(), tplOrFactory);
+export function defineComponents(comps) {
+  Object.entries(comps).forEach(([name, tplOrFactory]) => {
+    components.set(name.toLowerCase(), tplOrFactory);
+  });
 }
 
 /**
@@ -37,8 +39,6 @@ export function createComponent(configOrSetup, maybeSetup) {
   return function () {
     const local = new Map();
     const comps = config.components || {};
-
-    console.log("Defining component with components:", configOrSetup);
 
     for (const k in comps) {
       local.set(k.toLowerCase(), comps[k]);

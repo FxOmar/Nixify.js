@@ -6,6 +6,7 @@ directive("bind", (el, { expression }, helpers) => {
   const raw = Array.from(el.attributes).find((a) => {
     if (a.name.startsWith("nix-bind:")) return true;
     if (/^:[a-zA-Z]+$/.test(a.name)) return true;
+
     return false;
   });
 
@@ -15,44 +16,18 @@ directive("bind", (el, { expression }, helpers) => {
 
   const name = (expression || "").trim();
 
-  const getter = vars.get(name);
-  const box = getter ? getter() : null;
-
-  if (!box || typeof box !== "object" || !("value" in box)) return;
-
-  const setProp = (v) => {
-    if (prop === "value") {
-      el.value = v == null ? "" : "" + v;
-    } else if (prop === "checked") {
-      el.checked = !!v;
-    } else {
-      el[prop] = v;
-    }
-  };
-
-  const readProp = () => {
-    if (prop === "value") return el.value;
-    if (prop === "checked") return !!el.checked;
-
-    return el[prop];
-  };
-
   const run = () => {
-    setProp(box.value);
+    const v = helpers.evaluate(name);
+    console.log("nix-bind raw attribute:", raw, prop, v, name);
+
+    if (!v) return;
+
+    console.log("nix-bind:", { expression, name, v, el });
+
+    el.setAttribute(prop, v);
   };
 
   const runner = helpers.effect(run);
+
   helpers.cleanup(() => cleanupEffect(runner));
-
-  const evt = prop === "checked" ? "change" : "input";
-
-  const handler = () => {
-    try {
-      box.value = readProp();
-    } catch {}
-  };
-
-  el.addEventListener(evt, handler);
-
-  helpers.cleanup(() => el.removeEventListener(evt, handler));
 });

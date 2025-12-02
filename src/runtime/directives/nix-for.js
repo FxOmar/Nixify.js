@@ -2,7 +2,7 @@ import { directive } from "./core.js";
 import { dispatchDirective, prefix } from "./core.js";
 import { cleanupEffect } from "../../reactivity.js";
 import { components } from "../components.js";
-import { instantiateFragment } from "../mount.js";
+import { domScanner } from "../mount.js";
 import { setNodeLocalVars } from "../context.js";
 
 directive("for", (el, { expression }, helpers) => {
@@ -79,16 +79,21 @@ directive("for", (el, { expression }, helpers) => {
       if (lowerToComp.size) {
         const selector = Array.from(lowerToComp.keys()).join(",");
         const matches = clone.querySelectorAll(selector);
-        matches.forEach((child) => {
-          const comp = lowerToComp.get(child.tagName.toLowerCase());
-          if (!comp) return;
-          const childTpl = typeof comp === "function" ? comp() : comp;
-          const childInst = instantiateFragment(childTpl);
-          const nodes = childInst.frag.querySelectorAll("*");
-          nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
-          child.replaceWith(childInst.frag);
-          cloneCleanups.push(...childInst.cleanups);
-        });
+
+        // matches.forEach((child) => {
+        //   const comp = lowerToComp.get(child.tagName.toLowerCase());
+
+        //   if (!comp) return;
+
+        //   const childTpl = typeof comp === "function" ? comp() : comp;
+        //   const childInst = domScanner(childTpl);
+        //   const nodes = childInst.frag.querySelectorAll("*");
+
+        //   nodes.forEach((n) => setNodeLocalVars(n, childTpl.localVars));
+
+        //   child.replaceWith(childInst.frag);
+        //   cloneCleanups.push(...childInst.cleanups);
+        // });
       }
 
       for (let i = 0; i < baseAttributes.length; i++) {
@@ -109,10 +114,20 @@ directive("for", (el, { expression }, helpers) => {
 
       const processEl = (childEl) => {
         const attrs = childEl.attributes;
+
         for (let j = 0; j < attrs.length; j++) {
           const attr = attrs[j];
-          let name = attr.name.startsWith(":") ? attr.name.slice(1) : attr.name;
-          if (!name.startsWith(prefix)) name = prefix + name;
+
+          let name = attr.name;
+
+          if (
+            !name.startsWith(prefix) &&
+            !/^:[a-zA-Z]+$/.test(name) &&
+            !name.startsWith("nix-bind:")
+          ) {
+            continue;
+          }
+
           if (name === prefix + "for") continue;
 
           dispatchDirective(
@@ -133,6 +148,7 @@ directive("for", (el, { expression }, helpers) => {
       processEl(clone);
 
       const descendants = clone.querySelectorAll("*");
+
       for (let d = 0; d < descendants.length; d++) {
         processEl(descendants[d]);
       }

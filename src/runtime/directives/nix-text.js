@@ -5,7 +5,9 @@ directive("text", (el, { expression }, helpers) => {
   const run = () => {
     const v = helpers.evaluate(expression);
 
-    el.textContent = v == null ? "" : "" + v;
+    if (v == null) return;
+
+    el.textContent = "" + v;
   };
 
   const runner = helpers.effect(run);
